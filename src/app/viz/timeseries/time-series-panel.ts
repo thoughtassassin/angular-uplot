@@ -1,8 +1,10 @@
 import { Component, computed, input, linkedSignal, output } from '@angular/core';
 import uPlot from 'uplot';
-import { Uplot } from '../uplot/uplot';
-import { PanelOptions, Unit, toUplotOptions } from '../uplot/panel-options';
-import { TimeSeriesFrame, frameToChart } from '../uplot/time-series-frame';
+import { Uplot } from '../../shared/uplot/uplot';
+import { Unit } from '../../shared/units';
+import { DataFrame } from '../../data/data-frame';
+import { TimeSeriesPanelOptions, toUplotOptions } from './panel-options';
+import { frameToChart } from './frame-to-chart';
 
 const layoutOptions: uPlot.Options = {
   width: 800,
@@ -11,7 +13,7 @@ const layoutOptions: uPlot.Options = {
   series: [],
 };
 
-const defaultPanelOptions: PanelOptions = {
+const defaultPanelOptions: TimeSeriesPanelOptions = {
   unit: 'percent',
   softMin: 0,
   softMax: 100,
@@ -25,9 +27,9 @@ function parseNumberInput(value: string): number | undefined {
 }
 
 /**
- * A reusable Grafana-style time series panel: feed it a TimeSeriesFrame and it renders
- * the chart plus a settings form (unit, min/max, connect-nulls, tooltip, legend) driving
- * the uPlot wrapper underneath. Doesn't know or care where `frame` comes from.
+ * A reusable Grafana-style time series panel: feed it a DataFrame and it renders the chart
+ * plus a settings form (unit, min/max, connect-nulls, tooltip, legend) driving the uPlot
+ * wrapper underneath. Doesn't know or care where `frame` comes from.
  *
  * `options` seeds the panel's configuration and can be supplied by a parent (e.g. a saved
  * dashboard panel config). When `showControls` is true (default) the settings form lets a
@@ -35,14 +37,14 @@ function parseNumberInput(value: string): number | undefined {
  * by whatever `options` the parent passes in.
  */
 @Component({
-  selector: 'app-panel',
+  selector: 'app-timeseries-panel',
   imports: [Uplot],
-  templateUrl: './panel.html',
-  styleUrl: './panel.sass',
+  templateUrl: './time-series-panel.html',
+  styleUrl: './time-series-panel.sass',
 })
-export class Panel {
-  readonly frame = input.required<TimeSeriesFrame>();
-  readonly options = input<PanelOptions>(defaultPanelOptions);
+export class TimeSeriesPanel {
+  readonly frame = input.required<DataFrame>();
+  readonly options = input<TimeSeriesPanelOptions>(defaultPanelOptions);
   readonly showControls = input(true);
   readonly refresh = output<void>();
 
@@ -107,7 +109,7 @@ export class Panel {
   }
 
   protected setTooltipMode(mode: string): void {
-    this.panelOptions.update((p) => ({ ...p, tooltipMode: mode as PanelOptions['tooltipMode'] }));
+    this.panelOptions.update((p) => ({ ...p, tooltipMode: mode as TimeSeriesPanelOptions['tooltipMode'] }));
   }
 
   protected setShowLegend(value: boolean): void {

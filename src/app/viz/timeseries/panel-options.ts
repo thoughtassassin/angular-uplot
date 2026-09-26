@@ -1,16 +1,9 @@
 import uPlot from 'uplot';
 import { tooltipPlugin } from './plugins/tooltip';
+import { unitFormatters } from '../../shared/units';
+import { ValueScaleOptions } from '../../shared/value-scale-options';
 
-export type Unit = 'none' | 'percent' | 'bytes' | 'short';
-
-export interface PanelOptions {
-  unit?: Unit;
-  /** hard clamp - the scale never shows less than min or more than max, regardless of data */
-  min?: number;
-  max?: number;
-  /** soft bound - the scale fits the data, but won't shrink tighter than this; only extended past it if data exceeds it */
-  softMin?: number;
-  softMax?: number;
+export interface TimeSeriesPanelOptions extends ValueScaleOptions {
   /**
    * How null values are handled:
    * - false (default): gaps are left as breaks in the line
@@ -23,35 +16,6 @@ export interface PanelOptions {
   /** shows uPlot's built-in legend below the chart */
   showLegend?: boolean;
 }
-
-function formatBytes(v: number): string {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let n = v;
-  let i = 0;
-  while (Math.abs(n) >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return `${n.toFixed(1)} ${units[i]}`;
-}
-
-function formatShort(v: number): string {
-  const units = ['', 'K', 'M', 'B'];
-  let n = v;
-  let i = 0;
-  while (Math.abs(n) >= 1000 && i < units.length - 1) {
-    n /= 1000;
-    i++;
-  }
-  return `${n.toFixed(n % 1 === 0 ? 0 : 1)}${units[i]}`;
-}
-
-const unitFormatters: Record<Unit, (v: number) => string> = {
-  none: (v) => v.toString(),
-  percent: (v) => `${v.toFixed(1)}%`,
-  bytes: formatBytes,
-  short: formatShort,
-};
 
 /** keeps only null gaps wider than thresholdSeconds, so narrower gaps render as a connected line */
 function gapsThreshold(thresholdSeconds: number): uPlot.Series.GapsRefiner {
@@ -92,7 +56,7 @@ function axisSize(): uPlot.Axis.Size {
   };
 }
 
-function yRange(panel: PanelOptions): uPlot.Scale.Range {
+function yRange(panel: TimeSeriesPanelOptions): uPlot.Scale.Range {
   return (_u, dataMin, dataMax) => {
     if (panel.min != null && panel.max != null) return [panel.min, panel.max];
 
@@ -113,9 +77,9 @@ function yRange(panel: PanelOptions): uPlot.Scale.Range {
  * index 0 is the time series and is ignored) can override individual fields per-series.
  */
 export function toUplotOptions(
-  panel: PanelOptions,
+  panel: TimeSeriesPanelOptions,
   base: uPlot.Options,
-  seriesOverrides: (Partial<PanelOptions> | undefined)[] = [],
+  seriesOverrides: (Partial<TimeSeriesPanelOptions> | undefined)[] = [],
 ): uPlot.Options {
   const format = unitFormatters[panel.unit ?? 'none'];
 

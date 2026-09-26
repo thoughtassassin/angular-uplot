@@ -1,10 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { Panel } from './panel/panel';
-import { TimeSeriesFrame } from './uplot/time-series-frame';
+import { TimeSeriesPanel } from './viz/timeseries/time-series-panel';
+import { DataFrame } from './data/data-frame';
 
-// stands in for whatever your backend/datasource adapter returns - see time-series-frame.ts
-function makeFrame(): TimeSeriesFrame {
+// stands in for whatever your backend/datasource adapter returns - see data/data-frame.ts
+function makeFrame(): DataFrame {
   const now = Date.now();
   const time: number[] = [];
   const cpu: (number | null)[] = [];
@@ -22,25 +22,29 @@ function makeFrame(): TimeSeriesFrame {
 
   return {
     fields: [
-      { name: 'Time', type: 'time' },
+      { name: 'Time', type: 'time', values: time },
       // this field always bridges its own gaps regardless of the panel's connect-nulls setting
-      { name: 'cpu', type: 'number', config: { label: 'CPU', color: '#73bf69', connectNulls: true } },
-      { name: 'mem', type: 'number', config: { label: 'Memory', color: '#5794f2' } },
+      {
+        name: 'cpu',
+        type: 'number',
+        config: { label: 'CPU', color: '#73bf69', custom: { connectNulls: true } },
+        values: cpu,
+      },
+      { name: 'mem', type: 'number', config: { label: 'Memory', color: '#5794f2' }, values: mem },
     ],
-    values: [time, cpu, mem],
   };
 }
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Panel],
+  imports: [RouterOutlet, TimeSeriesPanel],
   templateUrl: './app.html',
   styleUrl: './app.sass',
 })
 export class App {
   protected readonly title = signal('angular-uplot');
 
-  protected readonly frame = signal<TimeSeriesFrame>(makeFrame());
+  protected readonly frame = signal<DataFrame>(makeFrame());
 
   protected readonly showControls = signal(true);
 

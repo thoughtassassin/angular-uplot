@@ -10,7 +10,7 @@
     <button type="button" (click)="refreshData()">Refresh data</button>
   </div>
 
-  <app-panel [frame]="frame()" [showControls]="showControls()" (refresh)="refreshData()" />
+  <app-timeseries-panel [frame]="frame()" [showControls]="showControls()" (refresh)="refreshData()" />
 </main>
 
 <router-outlet />
