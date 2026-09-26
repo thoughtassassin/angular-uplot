@@ -18,6 +18,10 @@ export interface PanelOptions {
    * - number: gaps up to this many seconds wide are bridged; wider gaps stay broken
    */
   connectNulls?: boolean | number;
+  /** 'all' (default): every series in the tooltip. 'single': only the hovered series. 'none': no tooltip. */
+  tooltipMode?: 'none' | 'single' | 'all';
+  /** shows uPlot's built-in legend below the chart */
+  showLegend?: boolean;
 }
 
 function formatBytes(v: number): string {
@@ -59,6 +63,35 @@ function gapsThreshold(thresholdSeconds: number): uPlot.Series.GapsRefiner {
     });
 }
 
+/**
+ * uPlot's y-axis gutter defaults to a fixed 50px (not auto-measured from label text), so
+ * formatted labels longer than that get clipped against the canvas edge. This measures the
+ * widest rendered label each layout pass and sizes the gutter to fit it.
+ */
+function axisSize(): uPlot.Axis.Size {
+  let lastSize = 50;
+
+  return (u, values, axisIdx, cycleNum) => {
+    // bail out after the first pass so the layout converges instead of oscillating
+    if (cycleNum > 1) return lastSize;
+
+    const axis = u.axes[axisIdx];
+    const ticksSize = (axis.ticks?.size ?? 0) + (axis.gap ?? 0);
+
+    const longest = (values ?? []).reduce((a, b) => (b != null && b.length > a.length ? b : a), '');
+
+    let textWidth = 0;
+    if (longest) {
+      const font = axis.font as unknown as [string, number];
+      u.ctx.font = font[0];
+      textWidth = u.ctx.measureText(longest).width / uPlot.pxRatio;
+    }
+
+    lastSize = Math.ceil(ticksSize + textWidth + 8);
+    return lastSize;
+  };
+}
+
 function yRange(panel: PanelOptions): uPlot.Scale.Range {
   return (_u, dataMin, dataMax) => {
     if (panel.min != null && panel.max != null) return [panel.min, panel.max];
@@ -74,23 +107,45 @@ function yRange(panel: PanelOptions): uPlot.Scale.Range {
  * Composes Grafana-style panel options (unit, min/max, softMin/softMax) onto a base
  * uPlot.Options describing the chart's own series/layout. Keeps the Uplot wrapper itself
  * generic - all panel semantics live here.
+ *
+ * `seriesOverrides` mirrors Grafana's fieldConfig.defaults/overrides split: `panel` is
+ * applied to every series, and `seriesOverrides[i]` (index-aligned with base.series,
+ * index 0 is the time series and is ignored) can override individual fields per-series.
  */
-export function toUplotOptions(panel: PanelOptions, base: uPlot.Options): uPlot.Options {
+export function toUplotOptions(
+  panel: PanelOptions,
+  base: uPlot.Options,
+  seriesOverrides: (Partial<PanelOptions> | undefined)[] = [],
+): uPlot.Options {
   const format = unitFormatters[panel.unit ?? 'none'];
 
   return {
     ...base,
+    legend: {
+      ...base.legend,
+      show: panel.showLegend ?? false,
+      live: false,
+      markers: {
+        ...base.legend?.markers,
+        width: 0,
+        fill: (u, seriesIdx) => {
+          const s = u.series[seriesIdx];
+          const stroke = typeof s.stroke === 'function' ? s.stroke(u, seriesIdx) : s.stroke;
+          return (stroke as string) ?? '';
+        },
+      },
+    },
     scales: {
       ...base.scales,
       y: { ...base.scales?.['y'], range: yRange(panel) },
     },
     axes: base.axes?.map((axis, i) =>
-      i === 1 ? { ...axis, values: (_u, splits) => splits.map(format) } : axis,
+      i === 1 ? { ...axis, values: (_u, splits) => splits.map(format), size: axisSize() } : axis,
     ),
     series: base.series?.map((s, i) => {
       if (i === 0) return s;
 
-      const connectNulls = panel.connectNulls ?? false;
+      const connectNulls = seriesOverrides[i]?.connectNulls ?? panel.connectNulls ?? false;
 
       if (typeof connectNulls === 'number') {
         return { ...s, spanGaps: false, gaps: gapsThreshold(connectNulls) };
@@ -98,6 +153,11 @@ export function toUplotOptions(panel: PanelOptions, base: uPlot.Options): uPlot.
 
       return { ...s, spanGaps: connectNulls };
     }),
-    plugins: [...(base.plugins ?? []), tooltipPlugin({ formatValue: (v) => format(v) })],
+    plugins: [
+      ...(base.plugins ?? []),
+      ...(panel.tooltipMode === 'none'
+        ? []
+        : [tooltipPlugin({ formatValue: (v) => format(v), mode: panel.tooltipMode === 'single' ? 'single' : 'all' })]),
+    ],
   };
 }

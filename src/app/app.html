@@ -1,61 +1,16 @@
 <main>
   <h1>{{ title() }}</h1>
 
-  <form class="panel-settings">
-    <label>
-      Unit
-      <select (change)="setUnit($any($event.target).value)">
-        <option value="none">None</option>
-        <option value="percent" selected>Percent</option>
-        <option value="bytes">Bytes</option>
-        <option value="short">Short</option>
-      </select>
+  <div class="app-controls">
+    <label class="checkbox">
+      <input type="checkbox" [checked]="showControls()" (change)="setShowControls($any($event.target).checked)" />
+      Show panel controls
     </label>
-
-    <label>
-      Min
-      <input type="number" placeholder="auto" (change)="setMin($any($event.target).value)" />
-    </label>
-
-    <label>
-      Max
-      <input type="number" placeholder="auto" (change)="setMax($any($event.target).value)" />
-    </label>
-
-    <label>
-      Soft min
-      <input type="number" value="0" (change)="setSoftMin($any($event.target).value)" />
-    </label>
-
-    <label>
-      Soft max
-      <input type="number" value="100" (change)="setSoftMax($any($event.target).value)" />
-    </label>
-
-    <label>
-      Connect null values
-      <select (change)="setConnectNullsMode($any($event.target).value)">
-        <option value="never" [selected]="connectNullsMode() === 'never'">Never</option>
-        <option value="always" [selected]="connectNullsMode() === 'always'">Always</option>
-        <option value="threshold" [selected]="connectNullsMode() === 'threshold'">Threshold</option>
-      </select>
-    </label>
-
-    @if (connectNullsMode() === 'threshold') {
-      <label>
-        Threshold (s)
-        <input
-          type="number"
-          [value]="connectNullsThreshold()"
-          (change)="setConnectNullsThreshold($any($event.target).value)"
-        />
-      </label>
-    }
 
     <button type="button" (click)="refreshData()">Refresh data</button>
-  </form>
+  </div>
 
-  <app-uplot [options]="uplotOptions()" [data]="chartData()" />
+  <app-panel [frame]="frame()" [showControls]="showControls()" (refresh)="refreshData()" />
 </main>
 
 <router-outlet />

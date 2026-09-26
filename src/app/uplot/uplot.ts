@@ -54,7 +54,13 @@ export class Uplot {
       const options = this.options();
       if (!this.chart) return;
       this.chart.destroy();
-      this.chart = new uPlot(options, untracked(this.data), this.chartEl().nativeElement);
+
+      const el = this.chartEl().nativeElement;
+      this.chart = new uPlot(options, untracked(this.data), el);
+
+      // options.width is just an initial value - resync to the container's actual
+      // width immediately, since recreating doesn't re-trigger the resize observer
+      this.chart.setSize({ width: el.clientWidth, height: options.height });
     });
 
     inject(DestroyRef).onDestroy(() => {

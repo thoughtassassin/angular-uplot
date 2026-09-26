@@ -1,0 +1,75 @@
+<div class="panel">
+  <div class="panel-chart">
+    <app-uplot [options]="uplotOptions()" [data]="chartData()" />
+  </div>
+
+  @if (showControls()) {
+  <form class="panel-settings">
+    <label>
+      Unit
+      <select (change)="setUnit($any($event.target).value)">
+        <option value="none">None</option>
+        <option value="percent" selected>Percent</option>
+        <option value="bytes">Bytes</option>
+        <option value="short">Short</option>
+      </select>
+    </label>
+
+    <label>
+      Min
+      <input type="number" placeholder="auto" (change)="setMin($any($event.target).value)" />
+    </label>
+
+    <label>
+      Max
+      <input type="number" placeholder="auto" (change)="setMax($any($event.target).value)" />
+    </label>
+
+    <label>
+      Soft min
+      <input type="number" value="0" (change)="setSoftMin($any($event.target).value)" />
+    </label>
+
+    <label>
+      Soft max
+      <input type="number" value="100" (change)="setSoftMax($any($event.target).value)" />
+    </label>
+
+    <label>
+      Connect null values
+      <select (change)="setConnectNullsMode($any($event.target).value)">
+        <option value="never" [selected]="connectNullsMode() === 'never'">Never</option>
+        <option value="always" [selected]="connectNullsMode() === 'always'">Always</option>
+        <option value="threshold" [selected]="connectNullsMode() === 'threshold'">Threshold</option>
+      </select>
+    </label>
+
+    @if (connectNullsMode() === 'threshold') {
+      <label>
+        Threshold (s)
+        <input
+          type="number"
+          [value]="connectNullsThreshold()"
+          (change)="setConnectNullsThreshold($any($event.target).value)"
+        />
+      </label>
+    }
+
+    <label>
+      Tooltip
+      <select (change)="setTooltipMode($any($event.target).value)">
+        <option value="none">None</option>
+        <option value="single">Single</option>
+        <option value="all" selected>All</option>
+      </select>
+    </label>
+
+    <label class="checkbox">
+      <input type="checkbox" (change)="setShowLegend($any($event.target).checked)" />
+      Show legend
+    </label>
+
+    <button type="button" (click)="refresh.emit()">Refresh data</button>
+  </form>
+  }
+</div>

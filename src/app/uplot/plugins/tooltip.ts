@@ -5,6 +5,8 @@ export interface TooltipOptions {
   formatTime?: (xValue: number) => string;
   /** Formats a single series value. Defaults to 2 decimal places. */
   formatValue?: (value: number, seriesIdx: number) => string;
+  /** 'all' (default) lists every visible series; 'single' shows only the series closest to the cursor */
+  mode?: 'single' | 'all';
 }
 
 const defaultFormatTime = (xValue: number): string => new Date(xValue * 1000).toLocaleString();
@@ -13,6 +15,7 @@ const defaultFormatValue = (value: number): string => value.toFixed(2);
 export function tooltipPlugin(opts: TooltipOptions = {}): uPlot.Plugin {
   const formatTime = opts.formatTime ?? defaultFormatTime;
   const formatValue = opts.formatValue ?? defaultFormatValue;
+  const mode = opts.mode ?? 'all';
 
   let tooltip: HTMLDivElement;
   let timeEl: HTMLDivElement;
@@ -94,7 +97,9 @@ export function tooltipPlugin(opts: TooltipOptions = {}): uPlot.Plugin {
             const row = rows[i - 1];
             if (!row) return;
 
-            if (s.show === false) {
+            const hiddenByMode = mode === 'single' && i !== closestSeriesIdx;
+
+            if (s.show === false || hiddenByMode) {
               row.root.style.display = 'none';
               return;
             }
