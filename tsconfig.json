@@ -3,6 +3,9 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "paths": {
+      "angular-uplot": ["./dist/angular-uplot"]
+    },
     "strict": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
@@ -28,6 +31,12 @@
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/angular-uplot/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/angular-uplot/tsconfig.spec.json"
     }
   ]
 }

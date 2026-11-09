@@ -1,16 +1,10 @@
 <main>
   <h1>{{ title() }}</h1>
 
-  <div class="app-controls">
-    <label class="checkbox">
-      <input type="checkbox" [checked]="showControls()" (change)="setShowControls($any($event.target).checked)" />
-      Show panel controls
-    </label>
+  <nav class="demo-nav">
+    <a routerLink="/">Grafana-style panel</a>
+    <a routerLink="/plain-chart">Plain chart</a>
+  </nav>
 
-    <button type="button" (click)="refreshData()">Refresh data</button>
-  </div>
-
-  <app-timeseries-panel [frame]="frame()" [showControls]="showControls()" (refresh)="refreshData()" />
+  <router-outlet />
 </main>
-
-<router-outlet />

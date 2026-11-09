@@ -1,17 +1,20 @@
 import { Component, computed, input, linkedSignal, output } from '@angular/core';
 import uPlot from 'uplot';
-import { Uplot } from '../../shared/uplot/uplot';
-import { Unit } from '../../shared/units';
-import { DataFrame } from '../../data/data-frame';
-import { TimeSeriesPanelOptions, toUplotOptions } from './panel-options';
-import { frameToChart } from './frame-to-chart';
-
-const layoutOptions: uPlot.Options = {
-  width: 800,
-  height: 300,
-  axes: [{}, {}],
-  series: [],
-};
+import {
+  DataField,
+  DataFrame,
+  UplotAxis,
+  UplotChart,
+  UplotConnectNulls,
+  UplotLegend,
+  UplotPlugin,
+  UplotSeries,
+  UplotSoftBounds,
+  type Unit,
+  unitFormatters,
+} from 'angular-uplot';
+import { TimeSeriesPanelOptions } from './panel-options';
+import { tooltipPlugin } from './plugins/tooltip';
 
 const defaultPanelOptions: TimeSeriesPanelOptions = {
   unit: 'percent',
@@ -19,6 +22,7 @@ const defaultPanelOptions: TimeSeriesPanelOptions = {
   softMax: 100,
   connectNulls: false,
   tooltipMode: 'all',
+  tooltipPinOnClick: false,
   showLegend: false,
 };
 
@@ -28,8 +32,13 @@ function parseNumberInput(value: string): number | undefined {
 
 /**
  * A reusable Grafana-style time series panel: feed it a DataFrame and it renders the chart
- * plus a settings form (unit, min/max, connect-nulls, tooltip, legend) driving the uPlot
- * wrapper underneath. Doesn't know or care where `frame` comes from.
+ * plus a settings form (unit, min/max, connect-nulls, tooltip, legend) driving <uplot-chart>
+ * underneath. Doesn't know or care where `frame` comes from.
+ *
+ * Built entirely on the library's declarative composition layer - no hand-built uPlot.Options.
+ * `panel-options.ts` is now just the settings interface; `toUplotOptions()`/`yRange()`/
+ * `axisSize()`/`gapsThreshold()` and `frame-to-chart.ts` are gone, since <uplot-axis>,
+ * <uplot-soft-bounds>, and <uplot-connect-nulls> already implement the same logic.
  *
  * `options` seeds the panel's configuration and can be supplied by a parent (e.g. a saved
  * dashboard panel config). When `showControls` is true (default) the settings form lets a
@@ -38,7 +47,7 @@ function parseNumberInput(value: string): number | undefined {
  */
 @Component({
   selector: 'app-timeseries-panel',
-  imports: [Uplot],
+  imports: [UplotChart, UplotSeries, UplotAxis, UplotLegend, UplotPlugin, UplotConnectNulls, UplotSoftBounds],
   templateUrl: './time-series-panel.html',
   styleUrl: './time-series-panel.sass',
 })
@@ -48,21 +57,23 @@ export class TimeSeriesPanel {
   readonly showControls = input(true);
   readonly refresh = output<void>();
 
-  protected readonly chart = computed(() => frameToChart(this.frame()));
-
-  protected readonly chartData = computed(() => this.chart().data);
-
   // re-seeds from `options` whenever it changes, but stays locally writable via the
   // settings form in between - lets the panel be either controlled or user-editable
   protected readonly panelOptions = linkedSignal(() => this.options());
 
-  protected readonly uplotOptions = computed(() =>
-    toUplotOptions(
-      this.panelOptions(),
-      { ...layoutOptions, series: this.chart().series },
-      this.chart().seriesOverrides,
-    ),
-  );
+  protected readonly valueFields = computed<DataField[]>(() => this.frame().fields.slice(1));
+
+  protected readonly tooltip = computed<uPlot.Plugin | null>(() => {
+    const panel = this.panelOptions();
+    if (panel.tooltipMode === 'none') return null;
+
+    const format = unitFormatters[panel.unit ?? 'none'];
+    return tooltipPlugin({
+      formatValue: (v) => format(v),
+      mode: panel.tooltipMode === 'single' ? 'single' : 'all',
+      pinOnClick: panel.tooltipPinOnClick ?? false,
+    });
+  });
 
   protected readonly connectNullsMode = computed<'never' | 'always' | 'threshold'>(() => {
     const cn = this.panelOptions().connectNulls;
@@ -75,6 +86,12 @@ export class TimeSeriesPanel {
     const cn = this.panelOptions().connectNulls;
     return typeof cn === 'number' ? cn : 300;
   });
+
+  /** a field's own connectNulls override (from field.config.custom) wins over the panel-wide default */
+  protected resolveConnectNulls(field: DataField): boolean | number {
+    const override = field.config?.custom?.['connectNulls'] as boolean | number | undefined;
+    return override ?? this.panelOptions().connectNulls ?? false;
+  }
 
   protected setUnit(value: string): void {
     this.panelOptions.update((p) => ({ ...p, unit: value as Unit }));
@@ -110,6 +127,10 @@ export class TimeSeriesPanel {
 
   protected setTooltipMode(mode: string): void {
     this.panelOptions.update((p) => ({ ...p, tooltipMode: mode as TimeSeriesPanelOptions['tooltipMode'] }));
+  }
+
+  protected setTooltipPinOnClick(value: boolean): void {
+    this.panelOptions.update((p) => ({ ...p, tooltipPinOnClick: value }));
   }
 
   protected setShowLegend(value: boolean): void {

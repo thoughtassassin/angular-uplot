@@ -1,0 +1,18 @@
+<p>
+  Same mock data as the Grafana-style demo, rendered with &lt;uplot-chart&gt; directly - just
+  series/axis/legend children, no settings form, no tooltip plugin.
+</p>
+
+<button type="button" (click)="refreshData()">Refresh data</button>
+<button type="button" (click)="toggleHeight()">Toggle height ({{ height() }}px)</button>
+
+<uplot-chart [source]="frame()" [height]="height()">
+  <uplot-series field="cpu" label="CPU" color="#73bf69" />
+  <uplot-series field="mem" label="Memory" color="#5794f2" />
+
+  <uplot-axis scale="y" unit="percent">
+    <uplot-soft-bounds [min]="0" [max]="100" />
+  </uplot-axis>
+
+  <uplot-legend />
+</uplot-chart>

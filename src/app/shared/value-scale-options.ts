@@ -1,4 +1,4 @@
-import { Unit } from './units';
+import { Unit } from 'angular-uplot';
 
 /**
  * The unit/min/max/soft-bound options common to any visualization with a numeric value axis.

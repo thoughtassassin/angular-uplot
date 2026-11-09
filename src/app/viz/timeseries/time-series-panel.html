@@ -1,6 +1,24 @@
 <div class="panel">
   <div class="panel-chart">
-    <app-uplot [options]="uplotOptions()" [data]="chartData()" />
+    <uplot-chart [source]="frame()" [height]="300">
+      @for (field of valueFields(); track field.name) {
+        <uplot-series [field]="field.name" [width]="2" [showPoints]="false">
+          @if (resolveConnectNulls(field); as cn) {
+            <uplot-connect-nulls [thresholdSeconds]="cn" />
+          }
+        </uplot-series>
+      }
+
+      <uplot-axis scale="y" [unit]="panelOptions().unit ?? 'none'" [min]="panelOptions().min" [max]="panelOptions().max">
+        <uplot-soft-bounds [min]="panelOptions().softMin" [max]="panelOptions().softMax" />
+      </uplot-axis>
+
+      <uplot-legend [show]="panelOptions().showLegend ?? false" />
+
+      @if (tooltip(); as plugin) {
+        <uplot-plugin [plugin]="plugin" />
+      }
+    </uplot-chart>
   </div>
 
   @if (showControls()) {
@@ -62,6 +80,11 @@
         <option value="single">Single</option>
         <option value="all" selected>All</option>
       </select>
+    </label>
+
+    <label class="checkbox">
+      <input type="checkbox" (change)="setTooltipPinOnClick($any($event.target).checked)" />
+      Pin tooltip on click
     </label>
 
     <label class="checkbox">

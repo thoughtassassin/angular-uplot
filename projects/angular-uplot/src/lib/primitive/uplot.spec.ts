@@ -14,7 +14,10 @@ describe('Uplot', () => {
     fixture = TestBed.createComponent(Uplot);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('options', { width: 400, height: 200, series: [{}, {}] });
-    fixture.componentRef.setInput('data', [[0, 1, 2], [0, 1, 2]]);
+    fixture.componentRef.setInput('data', [
+      [0, 1, 2],
+      [0, 1, 2],
+    ]);
     await fixture.whenStable();
   });
 

@@ -7,6 +7,8 @@ export interface TooltipOptions {
   formatValue?: (value: number, seriesIdx: number) => string;
   /** 'all' (default) lists every visible series; 'single' shows only the series closest to the cursor */
   mode?: 'single' | 'all';
+  /** When true, clicking the chart freezes the tooltip at that point - it stays visible (ignoring further cursor movement, even leaving the chart) until clicked again. Default false. */
+  pinOnClick?: boolean;
 }
 
 const defaultFormatTime = (xValue: number): string => new Date(xValue * 1000).toLocaleString();
@@ -16,12 +18,14 @@ export function tooltipPlugin(opts: TooltipOptions = {}): uPlot.Plugin {
   const formatTime = opts.formatTime ?? defaultFormatTime;
   const formatValue = opts.formatValue ?? defaultFormatValue;
   const mode = opts.mode ?? 'all';
+  const pinOnClick = opts.pinOnClick ?? false;
 
   let tooltip: HTMLDivElement;
   let timeEl: HTMLDivElement;
   let rowsEl: HTMLDivElement;
   let rows: { root: HTMLDivElement; marker: HTMLSpanElement; label: HTMLSpanElement; value: HTMLSpanElement }[] = [];
   let lastIdx: number | null | undefined;
+  let pinned = false;
 
   function buildRows(u: uPlot): void {
     rowsEl.innerHTML = '';
@@ -45,6 +49,76 @@ export function tooltipPlugin(opts: TooltipOptions = {}): uPlot.Plugin {
     });
   }
 
+  function renderTooltip(u: uPlot): void {
+    const { idx, left, top } = u.cursor;
+
+    if (idx == null || left == null || top == null || left < 0) {
+      tooltip.style.display = 'none';
+      lastIdx = idx;
+      return;
+    }
+
+    if (idx !== lastIdx) {
+      timeEl.textContent = formatTime(u.data[0][idx] as number);
+
+      // find the series whose value is pixel-closest to the cursor's y position,
+      // so we can bold it the way Grafana highlights the hovered series
+      let closestSeriesIdx = -1;
+      let closestDist = Infinity;
+
+      u.series.forEach((s, i) => {
+        if (i === 0 || s.show === false) return;
+        const val = u.data[i][idx] as number | null;
+        if (val == null) return;
+        const dist = Math.abs(u.valToPos(val, s.scale ?? 'y', false) - top);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestSeriesIdx = i;
+        }
+      });
+
+      u.series.forEach((s, i) => {
+        if (i === 0) return;
+        const row = rows[i - 1];
+        if (!row) return;
+
+        const hiddenByMode = mode === 'single' && i !== closestSeriesIdx;
+
+        if (s.show === false || hiddenByMode) {
+          row.root.style.display = 'none';
+          return;
+        }
+
+        const value = u.data[i][idx] as number | null;
+        const stroke = typeof s.stroke === 'function' ? s.stroke(u, i) : s.stroke;
+
+        row.root.style.display = 'flex';
+        row.root.classList.toggle('is-active', i === closestSeriesIdx);
+        row.marker.style.background = (stroke as string) ?? '';
+        row.label.textContent = (s.label as string) ?? `Series ${i}`;
+        row.value.textContent = value == null ? '—' : formatValue(value, i);
+      });
+
+      lastIdx = idx;
+    }
+
+    tooltip.style.display = 'block';
+
+    const overWidth = u.over.clientWidth;
+    const overHeight = u.over.clientHeight;
+    const tooltipWidth = tooltip.offsetWidth;
+    const tooltipHeight = tooltip.offsetHeight;
+    const offset = 12;
+
+    let x = left + offset;
+    let y = top + offset;
+
+    if (x + tooltipWidth > overWidth) x = left - tooltipWidth - offset;
+    if (y + tooltipHeight > overHeight) y = top - tooltipHeight - offset;
+
+    tooltip.style.transform = `translate(${Math.max(0, x)}px, ${Math.max(0, y)}px)`;
+  }
+
   return {
     hooks: {
       init: (u) => {
@@ -62,76 +136,22 @@ export function tooltipPlugin(opts: TooltipOptions = {}): uPlot.Plugin {
         u.over.appendChild(tooltip);
 
         buildRows(u);
+
+        if (pinOnClick) {
+          u.over.addEventListener('click', () => {
+            if (pinned) {
+              pinned = false;
+              renderTooltip(u); // resume live tracking immediately, don't wait for the next mousemove
+            } else if (u.cursor.idx != null) {
+              pinned = true; // tooltip is already showing the right content/position from the last hover - just stop reacting to further movement
+            }
+          });
+        }
       },
 
       setCursor: (u) => {
-        const { idx, left, top } = u.cursor;
-
-        if (idx == null || left == null || top == null || left < 0) {
-          tooltip.style.display = 'none';
-          lastIdx = idx;
-          return;
-        }
-
-        if (idx !== lastIdx) {
-          timeEl.textContent = formatTime(u.data[0][idx] as number);
-
-          // find the series whose value is pixel-closest to the cursor's y position,
-          // so we can bold it the way Grafana highlights the hovered series
-          let closestSeriesIdx = -1;
-          let closestDist = Infinity;
-
-          u.series.forEach((s, i) => {
-            if (i === 0 || s.show === false) return;
-            const val = u.data[i][idx] as number | null;
-            if (val == null) return;
-            const dist = Math.abs(u.valToPos(val, s.scale ?? 'y', false) - top);
-            if (dist < closestDist) {
-              closestDist = dist;
-              closestSeriesIdx = i;
-            }
-          });
-
-          u.series.forEach((s, i) => {
-            if (i === 0) return;
-            const row = rows[i - 1];
-            if (!row) return;
-
-            const hiddenByMode = mode === 'single' && i !== closestSeriesIdx;
-
-            if (s.show === false || hiddenByMode) {
-              row.root.style.display = 'none';
-              return;
-            }
-
-            const value = u.data[i][idx] as number | null;
-            const stroke = typeof s.stroke === 'function' ? s.stroke(u, i) : s.stroke;
-
-            row.root.style.display = 'flex';
-            row.root.classList.toggle('is-active', i === closestSeriesIdx);
-            row.marker.style.background = (stroke as string) ?? '';
-            row.label.textContent = (s.label as string) ?? `Series ${i}`;
-            row.value.textContent = value == null ? '—' : formatValue(value, i);
-          });
-
-          lastIdx = idx;
-        }
-
-        tooltip.style.display = 'block';
-
-        const overWidth = u.over.clientWidth;
-        const overHeight = u.over.clientHeight;
-        const tooltipWidth = tooltip.offsetWidth;
-        const tooltipHeight = tooltip.offsetHeight;
-        const offset = 12;
-
-        let x = left + offset;
-        let y = top + offset;
-
-        if (x + tooltipWidth > overWidth) x = left - tooltipWidth - offset;
-        if (y + tooltipHeight > overHeight) y = top - tooltipHeight - offset;
-
-        tooltip.style.transform = `translate(${Math.max(0, x)}px, ${Math.max(0, y)}px)`;
+        if (pinned) return;
+        renderTooltip(u);
       },
 
       destroy: () => {

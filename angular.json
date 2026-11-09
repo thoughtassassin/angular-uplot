@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "angular-uplot": {
+    "demo": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -29,10 +29,7 @@
                 "input": "public"
               }
             ],
-            "styles": [
-              "node_modules/uplot/dist/uPlot.min.css",
-              "src/styles.sass"
-            ]
+            "styles": ["node_modules/uplot/dist/uPlot.min.css", "src/styles.sass"]
           },
           "configurations": {
             "production": {
@@ -62,10 +59,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "angular-uplot:build:production"
+              "buildTarget": "demo:build:production"
             },
             "development": {
-              "buildTarget": "angular-uplot:build:development"
+              "buildTarget": "demo:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -74,6 +71,33 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "setupFiles": ["src/test-setup.ts"]
+          }
+        }
+      }
+    },
+    "angular-uplot": {
+      "projectType": "library",
+      "root": "projects/angular-uplot",
+      "sourceRoot": "projects/angular-uplot/src",
+      "prefix": "uplot",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/angular-uplot/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/angular-uplot/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/angular-uplot/tsconfig.spec.json",
+            "setupFiles": ["projects/angular-uplot/src/test-setup.ts"]
           }
         }
       }

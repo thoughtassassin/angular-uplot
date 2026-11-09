@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { TimeSeriesPanel } from './time-series-panel';
-import { DataFrame } from '../../data/data-frame';
+import { DataFrame } from 'angular-uplot';
 
 const testFrame: DataFrame = {
   fields: [

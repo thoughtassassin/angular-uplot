@@ -1,0 +1,10 @@
+<div class="app-controls">
+  <label class="checkbox">
+    <input type="checkbox" [checked]="showControls()" (change)="setShowControls($any($event.target).checked)" />
+    Show panel controls
+  </label>
+
+  <button type="button" (click)="refreshData()">Refresh data</button>
+</div>
+
+<app-timeseries-panel [frame]="frame()" [showControls]="showControls()" (refresh)="refreshData()" />
