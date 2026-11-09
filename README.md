@@ -92,14 +92,62 @@ and renders the primitive internally - no manual options object required.
 - **`applyMode`** (`'immediate'` default, or `'manual'`) controls whether every config change
   redraws right away, or stays staged until `apply()` is called - useful for a settings form
   where you don't want a destroy/recreate on every keystroke.
-- Child components (`UplotSeries`, `UplotAxis`, `UplotLegend`, `UplotPlugin`, and their own
-  modifier children `UplotConnectNulls`/`UplotSoftBounds`) hold config and render nothing
-  themselves; `<uplot-chart>` collects them via signal `contentChildren()`.
 - `<uplot-series>` also takes `width` (line stroke width) and `showPoints` (point marker
   visibility) - both leave uPlot's own default untouched when unset.
 - Children can come from a `@for` just as easily as being hand-written - `<uplot-series>` is
   matched by `field` key, so loop order doesn't matter, and `contentChildren()` reacts to
   children being added/removed by the loop the same way it reacts to any other input change.
+
+### Extending the declarative layer with your own visualizations
+
+`<uplot-series>`/`<uplot-axis>`/`<uplot-legend>`/`<uplot-plugin>` aren't special-cased inside
+`<uplot-chart>` - they're just the first four implementations of one open contract:
+
+```ts
+export abstract class UplotOptionsContributor {
+  /** Returns a modified uPlot.Options - don't mutate `options` in place. */
+  abstract contribute(options: uPlot.Options, adapted: AdaptedFrame): uPlot.Options;
+}
+```
+
+`<uplot-chart>` queries for *any* component that provides itself under this token
+(`contentChildren(UplotOptionsContributor, { descendants: true })`) and folds them over a base
+`uPlot.Options` (pre-seeded with one series entry per data field - default label/color from the
+adapter or a palette fallback - and a placeholder x-axis) in content order. A brand new
+visualization type - a bar series, a min/max band, cursor sync, anything uPlot's options surface
+can express - is a component you write yourself, anywhere, with no library change:
+
+```ts
+@Component({
+  selector: 'uplot-bar-series',
+  providers: [{ provide: UplotOptionsContributor, useExisting: UplotBarSeries }],
+  template: '',
+})
+export class UplotBarSeries extends UplotOptionsContributor {
+  readonly field = input.required<string>();
+  readonly color = input<string>();
+
+  override contribute(options: uPlot.Options, adapted: AdaptedFrame): uPlot.Options {
+    const fieldIdx = adapted.fields.findIndex((f) => f.key === this.field());
+    if (fieldIdx === -1) return options;
+    const series = [...(options.series ?? [])];
+    series[fieldIdx + 1] = { ...series[fieldIdx + 1], paths: uPlot.paths.bars!({ size: [0.6, 100] }) };
+    return { ...options, series };
+  }
+}
+```
+
+```html
+<uplot-chart [source]="frame">
+  <uplot-bar-series field="cpu" color="#73bf69" />
+  <uplot-series field="mem" label="Memory" color="#5794f2" />
+</uplot-chart>
+```
+
+`<uplot-bar-series>` is a real, working example of exactly this, not just a sketch - see
+`src/app/plain-chart-demo/uplot-bar-series.ts`, used in the Plain chart demo alongside the
+library's own `<uplot-series>` to render one field as bars and the other as a line, proving the
+extension point works for a genuinely new visualization type, not just the library's own internals.
 
 ### The data adapter pattern
 
@@ -140,8 +188,8 @@ form the same way the existing ones work.
 
 - Single shared y-axis/unit per chart - no per-field unit or multi-axis support (Grafana does
   this when fields have different units); `<uplot-axis>` could extend to multiple scale keys.
-- No multi-panel cursor sync (uPlot supports this natively via `cursor.sync`) - would be a new
-  child component, e.g. `<uplot-cursor-sync key="...">`.
-- No zoom-to-select.
+- No multi-panel cursor sync or zoom-to-select built in yet - both are expressible today as a new
+  `UplotOptionsContributor` (e.g. `<uplot-cursor-sync key="...">` setting `options.cursor.sync`),
+  just not shipped as part of the library yet.
 - No real backend integration in the demo - `DataFrame` (or a custom `DataAdapter`) is the
   intended integration seam for a real datasource.

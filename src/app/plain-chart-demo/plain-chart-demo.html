@@ -1,13 +1,16 @@
 <p>
   Same mock data as the Grafana-style demo, rendered with &lt;uplot-chart&gt; directly - just
-  series/axis/legend children, no settings form, no tooltip plugin.
+  series/axis/legend children, no settings form, no tooltip plugin. CPU renders via
+  &lt;uplot-bar-series&gt;, an app-level component (not in the library) extending
+  UplotOptionsContributor directly - proof a new visualization type doesn't require any
+  library change.
 </p>
 
 <button type="button" (click)="refreshData()">Refresh data</button>
 <button type="button" (click)="toggleHeight()">Toggle height ({{ height() }}px)</button>
 
 <uplot-chart [source]="frame()" [height]="height()">
-  <uplot-series field="cpu" label="CPU" color="#73bf69" />
+  <uplot-bar-series field="cpu" color="#73bf69" />
   <uplot-series field="mem" label="Memory" color="#5794f2" />
 
   <uplot-axis scale="y" unit="percent">

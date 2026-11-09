@@ -11,6 +11,7 @@ export * from './lib/data/data-frame-adapter';
 export * from './lib/shared/units';
 export * from './lib/shared/palette';
 
+export * from './lib/chart/uplot-options-contributor';
 export * from './lib/chart/uplot-chart';
 export * from './lib/chart/uplot-series';
 export * from './lib/chart/uplot-axis';
