@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve demo",
-    "build": "ng build demo",
+    "build": "npm run build:lib && ng build demo",
     "build:lib": "ng build angular-uplot",
     "watch:lib": "ng build angular-uplot --watch --configuration development",
     "test": "ng test angular-uplot && ng test demo"
