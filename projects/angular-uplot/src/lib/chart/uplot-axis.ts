@@ -1,17 +1,8 @@
 import { Component, contentChildren, input } from '@angular/core';
 import uPlot from 'uplot';
 import { Unit, unitFormatters } from '../shared/units';
+import { UplotAxisModifier, UplotAxisParts } from './uplot-axis-modifier';
 import { UplotOptionsContributor } from './uplot-options-contributor';
-import { UplotSoftBounds } from './uplot-soft-bounds';
-
-function yRange(min?: number, max?: number, softMin?: number, softMax?: number): uPlot.Scale.Range {
-  return (_u, dataMin, dataMax) => {
-    if (min != null && max != null) return [min, max];
-    const lo = min ?? Math.min(dataMin, softMin ?? dataMin);
-    const hi = max ?? Math.max(dataMax, softMax ?? dataMax);
-    return uPlot.rangeNum(lo, hi, 0.1, true);
-  };
-}
 
 /**
  * uPlot's axis gutter defaults to a fixed 50px (not auto-measured from label text), so
@@ -42,7 +33,7 @@ function axisSize(): uPlot.Axis.Size {
   };
 }
 
-/** Declares a value axis (and its backing scale) for a <uplot-chart>: unit formatting, hard min/max, and soft bounds via a nested <uplot-soft-bounds>. */
+/** Declares a value axis (and its backing scale) for a <uplot-chart>: unit formatting, hard min/max, and soft bounds via a nested <uplot-soft-bounds> (or any other UplotAxisModifier). */
 @Component({
   selector: 'uplot-axis',
   imports: [],
@@ -55,26 +46,34 @@ export class UplotAxis extends UplotOptionsContributor {
   readonly min = input<number>();
   readonly max = input<number>();
 
-  private readonly softBounds = contentChildren(UplotSoftBounds);
+  private readonly modifiers = contentChildren(UplotAxisModifier);
 
   override contribute(options: uPlot.Options): uPlot.Options {
     const format = unitFormatters[this.unit()];
-    const soft = this.softBounds()[0];
+    const min = this.min();
+    const max = this.max();
 
-    const axisConfig: Partial<uPlot.Axis> = {
-      scale: this.scale(),
-      values: (_u, splits) => splits.map(format),
-      size: axisSize(),
+    let parts: UplotAxisParts = {
+      axis: {
+        scale: this.scale(),
+        values: (_u, splits) => splits.map(format),
+        size: axisSize(),
+      },
+      scale: {
+        range: (_u, dataMin, dataMax) => {
+          if (min != null && max != null) return [min, max];
+          return uPlot.rangeNum(min ?? dataMin, max ?? dataMax, 0.1, true);
+        },
+      },
     };
-    const scaleConfig: Partial<uPlot.Scale> = {
-      range: yRange(this.min(), this.max(), soft?.min(), soft?.max()),
-    };
+
+    parts = this.modifiers().reduce((p, modifier) => modifier.modify(p), parts);
 
     return {
       ...options,
       // additive, not keyed to a field - a new axis entry per <uplot-axis>, same as a new scale
-      axes: [...(options.axes ?? []), axisConfig],
-      scales: { ...options.scales, [this.scale()]: scaleConfig },
+      axes: [...(options.axes ?? []), parts.axis],
+      scales: { ...options.scales, [this.scale()]: parts.scale },
     };
   }
 }

@@ -6,6 +6,7 @@ import { DataFrame } from '../data/data-frame';
 import { UplotChart } from './uplot-chart';
 import { UplotOptionsContributor } from './uplot-options-contributor';
 import { UplotSeries } from './uplot-series';
+import { UplotSeriesModifier } from './uplot-series-modifier';
 
 const testFrame: DataFrame = {
   fields: [
@@ -77,5 +78,41 @@ describe('UplotChart extensibility', () => {
 
     const chart = fixture.debugElement.children[0].componentInstance as UplotChart<DataFrame>;
     expect(chart.options().title).toBe('contributed by a third party');
+  });
+});
+
+// A third-party-style series modifier, nested inside the library's own <uplot-series> - proves
+// the extension point goes one level deeper than the top-level contributors above.
+@Component({
+  selector: 'stub-series-modifier',
+  providers: [{ provide: UplotSeriesModifier, useExisting: StubSeriesModifier }],
+  template: '',
+})
+class StubSeriesModifier extends UplotSeriesModifier {
+  override modify(series: Partial<uPlot.Series>): Partial<uPlot.Series> {
+    return { ...series, width: 42 };
+  }
+}
+
+@Component({
+  imports: [UplotChart, UplotSeries, StubSeriesModifier],
+  template: `
+    <uplot-chart [source]="frame">
+      <uplot-series field="cpu"><stub-series-modifier /></uplot-series>
+    </uplot-chart>
+  `,
+})
+class SeriesModifierHostComponent {
+  readonly frame = testFrame;
+}
+
+describe('UplotSeries extensibility', () => {
+  it('folds in any UplotSeriesModifier nested inside it, not just UplotConnectNulls', async () => {
+    await TestBed.configureTestingModule({ imports: [SeriesModifierHostComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(SeriesModifierHostComponent);
+    await fixture.whenStable();
+
+    const chart = fixture.debugElement.children[0].componentInstance as UplotChart<DataFrame>;
+    expect(chart.options().series![1]!.width).toBe(42);
   });
 });

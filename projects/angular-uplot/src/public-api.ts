@@ -12,6 +12,8 @@ export * from './lib/shared/units';
 export * from './lib/shared/palette';
 
 export * from './lib/chart/uplot-options-contributor';
+export * from './lib/chart/uplot-series-modifier';
+export * from './lib/chart/uplot-axis-modifier';
 export * from './lib/chart/uplot-chart';
 export * from './lib/chart/uplot-series';
 export * from './lib/chart/uplot-axis';

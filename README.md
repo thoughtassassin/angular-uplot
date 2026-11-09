@@ -149,6 +149,29 @@ export class UplotBarSeries extends UplotOptionsContributor {
 library's own `<uplot-series>` to render one field as bars and the other as a line, proving the
 extension point works for a genuinely new visualization type, not just the library's own internals.
 
+The same open pattern goes one level deeper, for components nested *inside* a contributor -
+`UplotConnectNulls` inside `<uplot-series>`, `UplotSoftBounds` inside `<uplot-axis>`. These aren't
+hardcoded references either:
+
+```ts
+export abstract class UplotSeriesModifier {
+  abstract modify(series: Partial<uPlot.Series>): Partial<uPlot.Series>;
+}
+
+export abstract class UplotAxisModifier {
+  abstract modify(parts: { axis: Partial<uPlot.Axis>; scale: Partial<uPlot.Scale> }): typeof parts;
+}
+```
+
+`<uplot-series>` queries `contentChildren(UplotSeriesModifier)` and `<uplot-axis>` queries
+`contentChildren(UplotAxisModifier)` - generic, not specific to `UplotConnectNulls`/
+`UplotSoftBounds`. Write your own nested modifier (a dash pattern, a custom fill) the same
+`useExisting` way and nest it inside the library's own `<uplot-series>`/`<uplot-axis>`, no fork
+required. One wrinkle worth knowing if you write an axis modifier that affects the scale's range
+(like `UplotSoftBounds` does): *wrap* `parts.scale.range` (call the previous function from inside
+your new one) rather than replace it outright, so it composes with other range-affecting
+modifiers instead of clobbering them.
+
 ### The data adapter pattern
 
 `UplotChart` doesn't require any particular data shape. `source` + `adapter` work together:

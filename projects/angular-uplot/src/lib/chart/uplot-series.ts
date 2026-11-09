@@ -1,8 +1,8 @@
 import { Component, contentChildren, input } from '@angular/core';
 import uPlot from 'uplot';
 import { AdaptedFrame } from '../data/data-adapter';
-import { UplotConnectNulls } from './uplot-connect-nulls';
 import { UplotOptionsContributor } from './uplot-options-contributor';
+import { UplotSeriesModifier } from './uplot-series-modifier';
 
 /**
  * Declares styling/behavior for one field of a <uplot-chart>'s data, matched by `field` key
@@ -25,12 +25,14 @@ export class UplotSeries extends UplotOptionsContributor {
   /** Whether to render a point marker at each data value. Leave unset to use uPlot's own default. */
   readonly showPoints = input<boolean>();
 
-  private readonly connectNulls = contentChildren(UplotConnectNulls);
+  private readonly modifiers = contentChildren(UplotSeriesModifier);
 
   override contribute(options: uPlot.Options, adapted: AdaptedFrame): uPlot.Options {
     const fieldIdx = adapted.fields.findIndex((f) => f.key === this.field());
     if (fieldIdx === -1) return options;
     const seriesIdx = fieldIdx + 1; // +1 for the x/time placeholder at index 0
+
+    const modified = this.modifiers().reduce((s, modifier) => modifier.modify(s), {} as Partial<uPlot.Series>);
 
     const series = [...(options.series ?? [])];
     series[seriesIdx] = {
@@ -39,7 +41,7 @@ export class UplotSeries extends UplotOptionsContributor {
       ...(this.color() != null ? { stroke: this.color() } : {}),
       ...(this.width() != null ? { width: this.width() } : {}),
       ...(this.showPoints() != null ? { points: { show: this.showPoints() } } : {}),
-      ...(this.connectNulls()[0]?.config() ?? {}),
+      ...modified,
     };
 
     return { ...options, series };
