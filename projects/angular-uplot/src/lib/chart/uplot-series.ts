@@ -32,7 +32,10 @@ export class UplotSeries extends UplotOptionsContributor {
     if (fieldIdx === -1) return options;
     const seriesIdx = fieldIdx + 1; // +1 for the x/time placeholder at index 0
 
-    const modified = this.modifiers().reduce((s, modifier) => modifier.modify(s), {} as Partial<uPlot.Series>);
+    const modified = this.modifiers().reduce(
+      (s, modifier) => modifier.modify(s, adapted),
+      {} as Partial<uPlot.Series>,
+    );
 
     const series = [...(options.series ?? [])];
     series[seriesIdx] = {

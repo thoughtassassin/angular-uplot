@@ -11,7 +11,9 @@ export const dataFrameAdapter: DataAdapter<DataFrame> = (frame) => {
   const [timeField, ...valueFields] = frame.fields;
 
   const data = [
-    timeField.values.map((t) => (t as number) / 1000),
+    // `t == null` (not `=== null`) so a missing-field `undefined` is treated the same as an
+    // explicit `null` - both mean "no timestamp for this point", not epoch 0.
+    (timeField?.values ?? []).map((t) => (t == null ? null : t / 1000)),
     ...valueFields.map((field) => field.values),
   ] as uPlot.AlignedData;
 

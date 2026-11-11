@@ -1,6 +1,7 @@
-import { Component, contentChildren, input } from '@angular/core';
+import { Component, contentChildren, inject, input } from '@angular/core';
 import uPlot from 'uplot';
-import { Unit, unitFormatters } from '../shared/units';
+import { UPLOT_UNITS, Unit } from '../shared/units';
+import { AdaptedFrame } from '../data/data-adapter';
 import { UplotAxisModifier, UplotAxisParts } from './uplot-axis-modifier';
 import { UplotOptionsContributor } from './uplot-options-contributor';
 
@@ -41,6 +42,8 @@ function axisSize(): uPlot.Axis.Size {
   providers: [{ provide: UplotOptionsContributor, useExisting: UplotAxis }],
 })
 export class UplotAxis extends UplotOptionsContributor {
+  private readonly unitFormatters = inject(UPLOT_UNITS);
+
   readonly scale = input.required<'x' | 'y'>();
   readonly unit = input<Unit>('none');
   readonly min = input<number>();
@@ -48,8 +51,8 @@ export class UplotAxis extends UplotOptionsContributor {
 
   private readonly modifiers = contentChildren(UplotAxisModifier);
 
-  override contribute(options: uPlot.Options): uPlot.Options {
-    const format = unitFormatters[this.unit()];
+  override contribute(options: uPlot.Options, adapted: AdaptedFrame): uPlot.Options {
+    const format = this.unitFormatters[this.unit()] ?? this.unitFormatters['none'];
     const min = this.min();
     const max = this.max();
 
@@ -67,7 +70,7 @@ export class UplotAxis extends UplotOptionsContributor {
       },
     };
 
-    parts = this.modifiers().reduce((p, modifier) => modifier.modify(p), parts);
+    parts = this.modifiers().reduce((p, modifier) => modifier.modify(p, adapted), parts);
 
     return {
       ...options,

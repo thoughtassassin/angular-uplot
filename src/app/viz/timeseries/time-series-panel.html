@@ -4,7 +4,7 @@
       @for (field of valueFields(); track field.name) {
         <uplot-series [field]="field.name" [width]="2" [showPoints]="false">
           @if (resolveConnectNulls(field); as cn) {
-            <uplot-connect-nulls [thresholdSeconds]="cn" />
+            <uplot-connect-nulls [thresholdMs]="cn" />
           }
         </uplot-series>
       }
@@ -30,6 +30,7 @@
         <option value="percent" selected>Percent</option>
         <option value="bytes">Bytes</option>
         <option value="short">Short</option>
+        <option value="bits-per-sec">Bits/sec (app-registered)</option>
       </select>
     </label>
 
@@ -64,7 +65,7 @@
 
     @if (connectNullsMode() === 'threshold') {
       <label>
-        Threshold (s)
+        Threshold (ms)
         <input
           type="number"
           [value]="connectNullsThreshold()"

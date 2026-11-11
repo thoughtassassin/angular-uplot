@@ -1,4 +1,5 @@
 import uPlot from 'uplot';
+import { AdaptedFrame } from '../data/data-adapter';
 
 export interface UplotAxisParts {
   axis: Partial<uPlot.Axis>;
@@ -14,6 +15,6 @@ export interface UplotAxisParts {
  * modifiers instead of clobbering them.
  */
 export abstract class UplotAxisModifier {
-  /** Returns modified UplotAxisParts - don't mutate `parts` in place. */
-  abstract modify(parts: UplotAxisParts): UplotAxisParts;
+  /** Returns modified UplotAxisParts - don't mutate `parts` in place. `adapted` is the current chart data, for a modifier that needs to make a decision from it (e.g. a unit picker choosing a magnitude from the data's peak value). */
+  abstract modify(parts: UplotAxisParts, adapted: AdaptedFrame): UplotAxisParts;
 }

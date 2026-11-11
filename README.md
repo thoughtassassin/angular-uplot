@@ -68,7 +68,7 @@ Use this directly if you want full, uPlot-shaped control, same as you would in R
 ```html
 <uplot-chart [source]="frame">
   <uplot-series field="cpu" label="CPU" color="#73bf69">
-    <uplot-connect-nulls [thresholdSeconds]="30" />
+    <uplot-connect-nulls [thresholdMs]="30000" />
   </uplot-series>
   <uplot-series field="mem" label="Memory" color="#5794f2" />
 

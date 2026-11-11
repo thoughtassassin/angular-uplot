@@ -1,4 +1,5 @@
 import uPlot from 'uplot';
+import { AdaptedFrame } from '../data/data-adapter';
 
 /**
  * Open extension point for <uplot-series>: any component that provides itself under this token
@@ -8,6 +9,6 @@ import uPlot from 'uplot';
  * behavior without forking UplotSeries.
  */
 export abstract class UplotSeriesModifier {
-  /** Returns a modified Partial<uPlot.Series> - don't mutate `series` in place. */
-  abstract modify(series: Partial<uPlot.Series>): Partial<uPlot.Series>;
+  /** Returns a modified Partial<uPlot.Series> - don't mutate `series` in place. `adapted` is the current chart data, for a modifier that needs to make a decision from it. */
+  abstract modify(series: Partial<uPlot.Series>, adapted: AdaptedFrame): Partial<uPlot.Series>;
 }

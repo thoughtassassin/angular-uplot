@@ -32,4 +32,25 @@ describe('dataFrameAdapter', () => {
       { key: 'memory', label: undefined, color: undefined, custom: undefined },
     ]);
   });
+
+  it('returns empty data and fields for an empty frame, instead of throwing', () => {
+    expect(dataFrameAdapter({ fields: [] })).toEqual({ data: [[]], fields: [] });
+  });
+
+  it('keeps null time values as null, instead of coercing to epoch 0', () => {
+    const frameWithNullTime: DataFrame = {
+      fields: [
+        { name: 'time', type: 'time', values: [1000, null, 3000] },
+        { name: 'cpu', type: 'number', values: [1, 2, 3] },
+      ],
+    };
+    expect(dataFrameAdapter(frameWithNullTime).data[0]).toEqual([1, null, 3]);
+  });
+
+  it('handles a frame with only a time field (no value fields)', () => {
+    const timeOnlyFrame: DataFrame = {
+      fields: [{ name: 'time', type: 'time', values: [1000, 2000] }],
+    };
+    expect(dataFrameAdapter(timeOnlyFrame)).toEqual({ data: [[1, 2]], fields: [] });
+  });
 });

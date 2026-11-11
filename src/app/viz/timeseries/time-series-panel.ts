@@ -1,8 +1,9 @@
-import { Component, computed, input, linkedSignal, output } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, output } from '@angular/core';
 import uPlot from 'uplot';
 import {
   DataField,
   DataFrame,
+  UPLOT_UNITS,
   UplotAxis,
   UplotChart,
   UplotConnectNulls,
@@ -11,7 +12,6 @@ import {
   UplotSeries,
   UplotSoftBounds,
   type Unit,
-  unitFormatters,
 } from 'angular-uplot';
 import { TimeSeriesPanelOptions } from './panel-options';
 import { tooltipPlugin } from './plugins/tooltip';
@@ -52,6 +52,8 @@ function parseNumberInput(value: string): number | undefined {
   styleUrl: './time-series-panel.sass',
 })
 export class TimeSeriesPanel {
+  private readonly unitFormatters = inject(UPLOT_UNITS);
+
   readonly frame = input.required<DataFrame>();
   readonly options = input<TimeSeriesPanelOptions>(defaultPanelOptions);
   readonly showControls = input(true);
@@ -67,7 +69,7 @@ export class TimeSeriesPanel {
     const panel = this.panelOptions();
     if (panel.tooltipMode === 'none') return null;
 
-    const format = unitFormatters[panel.unit ?? 'none'];
+    const format = this.unitFormatters[panel.unit ?? 'none'] ?? this.unitFormatters['none'];
     return tooltipPlugin({
       formatValue: (v) => format(v),
       mode: panel.tooltipMode === 'single' ? 'single' : 'all',
@@ -84,7 +86,7 @@ export class TimeSeriesPanel {
 
   protected readonly connectNullsThreshold = computed(() => {
     const cn = this.panelOptions().connectNulls;
-    return typeof cn === 'number' ? cn : 300;
+    return typeof cn === 'number' ? cn : 300_000; // 5 minutes
   });
 
   /** a field's own connectNulls override (from field.config.custom) wins over the panel-wide default */

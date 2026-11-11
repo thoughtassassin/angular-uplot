@@ -1,11 +1,31 @@
-import { Component, afterNextRender, computed, contentChildren, effect, input, output, signal } from '@angular/core';
+import {
+  Component,
+  afterNextRender,
+  computed,
+  contentChildren,
+  effect,
+  input,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 import uPlot from 'uplot';
 import { Uplot } from '../primitive/uplot';
-import { DataAdapter } from '../data/data-adapter';
+import { DataAdapter, FieldMeta } from '../data/data-adapter';
 import { dataFrameAdapter } from '../data/data-frame-adapter';
 import { DataFrame } from '../data/data-frame';
 import { defaultPalette } from '../shared/palette';
 import { UplotOptionsContributor } from './uplot-options-contributor';
+
+/** Deep-equal on field metadata, so a value-only data refresh (same keys/labels/colors/custom, different values) compares equal. */
+function fieldsEqual(a: FieldMeta[], b: FieldMeta[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Compared per-entry with `Object.is`, matching UplotOptionsContributor.dependsOn's own contract. */
+function factsEqual(a: unknown[], b: unknown[]): boolean {
+  return a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
+}
 
 /**
  * Declarative composition layer over the primitive Uplot wrapper: build a chart by nesting
@@ -22,15 +42,17 @@ import { UplotOptionsContributor } from './uplot-options-contributor';
   selector: 'uplot-chart',
   imports: [Uplot],
   template: `
-    <uplot
-      [options]="options()"
-      [data]="data()"
-      [height]="height()"
-      [width]="width()"
-      [resetScales]="resetScales()"
-      (created)="created.emit($event)"
-      (deleted)="deleted.emit($event)"
-    />
+    @if (viewReady()) {
+      <uplot
+        [options]="options()"
+        [data]="data()"
+        [height]="height()"
+        [width]="width()"
+        [resetScales]="resetScales()"
+        (created)="created.emit($event)"
+        (deleted)="deleted.emit($event)"
+      />
+    }
   `,
 })
 export class UplotChart<T = DataFrame> {
@@ -53,8 +75,28 @@ export class UplotChart<T = DataFrame> {
 
   readonly data = computed<uPlot.AlignedData>(() => this.adapted().data);
 
+  // Structural gates for liveOptions below: both read `adapted()` (so they re-run on every
+  // refresh) but their *output* is compared with a custom `equal`, so a value-only refresh -
+  // same field keys/labels/colors/custom, and no contributor's dependsOn() fact changed - keeps
+  // the same cached reference instead of propagating a change. Every contributor otherwise
+  // builds fresh objects on every run (fresh series/axes entries, fresh closures), so without
+  // this, optionsUpdateState (reference-equality per top-level key) would see a change on every
+  // single refresh and destroy/recreate the chart - losing hover/cursor state and flickering.
+  private readonly fields = computed(() => this.adapted().fields, { equal: fieldsEqual });
+
+  private readonly contributorFacts = computed(
+    () => this.contributors().map((contributor) => contributor.dependsOn?.(this.adapted())),
+    { equal: factsEqual },
+  );
+
   private readonly liveOptions = computed<uPlot.Options>(() => {
-    const adapted = this.adapted();
+    // Tracked reads: this is what actually determines whether liveOptions rebuilds. Reading the
+    // full `adapted()` here instead (which changes - new reference - on every refresh, data
+    // included) would defeat the memoization above.
+    this.fields();
+    this.contributorFacts();
+
+    const adapted = untracked(this.adapted);
 
     const base: uPlot.Options = {
       // placeholder - the primitive's own height/width inputs are the real levers, see template above
@@ -87,10 +129,25 @@ export class UplotChart<T = DataFrame> {
   // early throws. Gate the first read on afterNextRender, which only fires once a full render
   // pass (including content children's bindings) has completed - the same guarantee the
   // primitive wrapper relies on for its own first read.
-  private readonly viewReady = signal(false);
+  //
+  // The template above also gates <uplot> itself behind this signal, not just its options
+  // input: a child's afterNextRender fires before its parent's (bottom-up, same as
+  // ngAfterViewInit), so if <uplot> existed from the first render pass, its own afterNextRender
+  // would run - and construct a real chart against the placeholder below - before this
+  // component's afterNextRender ever gets a chance to seed the real options. Not creating
+  // <uplot> until viewReady is true means its first-ever render already sees the real value,
+  // so it only ever constructs the chart once.
+  protected readonly viewReady = signal(false);
 
   constructor() {
-    afterNextRender(() => this.viewReady.set(true));
+    afterNextRender(() => {
+      // Seed synchronously here, not only via the effect below, so <uplot> (created once this
+      // flips viewReady and the template above reflects it) never has a placeholder to see.
+      if (this.applyMode() === 'immediate') {
+        this.appliedOptions.set(untracked(this.liveOptions));
+      }
+      this.viewReady.set(true);
+    });
 
     effect(() => {
       if (!this.viewReady()) return;

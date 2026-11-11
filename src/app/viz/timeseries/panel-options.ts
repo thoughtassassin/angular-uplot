@@ -11,7 +11,7 @@ export interface TimeSeriesPanelOptions extends ValueScaleOptions {
    * How null values are handled:
    * - false (default): gaps are left as breaks in the line
    * - true: all gaps are bridged with a line
-   * - number: gaps up to this many seconds wide are bridged; wider gaps stay broken
+   * - number: gaps up to this many milliseconds wide are bridged; wider gaps stay broken
    */
   connectNulls?: boolean | number;
   /** 'all' (default): every series in the tooltip. 'single': only the hovered series. 'none': no tooltip. */
